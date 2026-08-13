@@ -94,10 +94,10 @@ export default function InventoryPage() {
             Previsão de Término (Dias Restantes)
           </h2>
           <div className="flex gap-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> > 15 dias</div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> &gt; 15 dias</div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-yellow-500"></div> 8-15 dias</div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-orange-500"></div> 4-7 dias</div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-red-500"></div> < 4 dias</div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground"><div className="w-2 h-2 rounded-full bg-red-500"></div> &lt; 4 dias</div>
           </div>
         </div>
         <table className="w-full text-left border-collapse">
