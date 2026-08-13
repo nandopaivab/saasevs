@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search, ShoppingCart, Plus, Minus, X, CreditCard, Banknote, QrCode, Trash2, Coffee, Milk } from "lucide-react";
-import { useStore, Product, CartItem } from "@/store/useStore";
+import { useStore, Product, CartItem, Customer } from "@/store/useStore";
 
 export default function PDVPage() {
   const products = useStore((state) => state.products);

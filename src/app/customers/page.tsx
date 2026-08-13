@@ -22,7 +22,7 @@ export default function CustomersPage() {
   const openModal = (customer?: Customer) => {
     if (customer) {
       setEditingCustomer(customer);
-      setFormData({ name: customer.name, phone: customer.phone, email: customer.email });
+      setFormData({ name: customer.name, phone: customer.phone, email: customer.email || "" });
     } else {
       setEditingCustomer(null);
       setFormData({ name: "", phone: "", email: "" });

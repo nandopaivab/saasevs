@@ -3,7 +3,7 @@ import { create } from 'zustand'
 export type Product = {
   id: number;
   name: string;
-  category: "Acesso" | "Shakes" | "Bebidas" | "Ingredientes" | "Adicionais";
+  category: "Acesso" | "Shakes" | "Bebidas" | "Ingredientes" | "Adicionais" | string;
   price: number;
   stock: number;
   unit: string;
@@ -15,9 +15,9 @@ export type Customer = {
   id: number;
   name: string;
   phone: string;
-  email: string;
-  status: "Ativo" | "Inativo";
-  lastVisit: string;
+  email: string | null;
+  status: string;
+  lastVisit: string | null;
   totalVisits: number;
 }
 
@@ -36,6 +36,7 @@ export type CartItem = {
 
 interface AppState {
   isAuthenticated: boolean;
+  isInitialized: boolean;
   login: () => void;
   logout: () => void;
   
@@ -47,120 +48,164 @@ interface AppState {
   customers: Customer[];
   activeCustomerForSale: Customer | null;
   
-  checkout: (cartItems: CartItem[]) => void;
-  addProduct: (product: Omit<Product, "id">) => void;
-  updateStock: (id: number, delta: number) => void;
-  addCustomer: (customer: Omit<Customer, "id">) => void;
-  updateCustomer: (id: number, customer: Partial<Customer>) => void;
-  deleteCustomer: (id: number) => void;
+  fetchInitialData: () => Promise<void>;
+  checkout: (cartItems: CartItem[], customerId?: number) => Promise<void>;
+  addProduct: (product: Omit<Product, "id">) => Promise<void>;
+  updateStock: (id: number, delta: number) => Promise<void>;
+  addCustomer: (customer: Omit<Customer, "id">) => Promise<Customer>;
+  updateCustomer: (id: number, customer: Partial<Customer>) => Promise<void>;
+  deleteCustomer: (id: number) => Promise<void>;
   setActiveCustomerForSale: (customer: Customer | null) => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   isAuthenticated: false,
+  isInitialized: false,
   login: () => set({ isAuthenticated: true }),
   logout: () => set({ isAuthenticated: false }),
   
-  revenue: 1485,
-  visitorsToday: 82,
-  shakesConsumed: 74,
+  revenue: 0,
+  visitorsToday: 0,
+  shakesConsumed: 0,
   
   activeCustomerForSale: null,
   
-  products: [
-    { id: 100, name: "Acesso Completo (2 Chás + Shake)", category: "Acesso", price: 25, stock: 9999, unit: "un", avgConsumption: 0 },
-    
-    // Ingredientes (Pós e Leites)
-    { id: 1, name: "Pó Morango", category: "Ingredientes", price: 0, stock: 3300, unit: "g", avgConsumption: 442, isIngredient: true },
-    { id: 2, name: "Pó Chocolate", category: "Ingredientes", price: 0, stock: 8200, unit: "g", avgConsumption: 390, isIngredient: true },
-    { id: 3, name: "Pó Baunilha", category: "Ingredientes", price: 0, stock: 2100, unit: "g", avgConsumption: 350, isIngredient: true },
-    { id: 4, name: "Pó Coco", category: "Ingredientes", price: 0, stock: 1500, unit: "g", avgConsumption: 200, isIngredient: true },
-    { id: 5, name: "Pó Abacaxi", category: "Ingredientes", price: 0, stock: 1000, unit: "g", avgConsumption: 100, isIngredient: true },
-    { id: 6, name: "Protein Powder", category: "Ingredientes", price: 0, stock: 1200, unit: "g", avgConsumption: 150, isIngredient: true },
-    { id: 7, name: "Leite Nutrev", category: "Ingredientes", price: 0, stock: 5000, unit: "g", avgConsumption: 500, isIngredient: true },
-    { id: 8, name: "Leite Normal", category: "Ingredientes", price: 0, stock: 10000, unit: "ml", avgConsumption: 1000, isIngredient: true },
-    
-    // Bebidas 
-    { id: 9, name: "Chá Verde", category: "Bebidas", price: 5, stock: 1500, unit: "g", avgConsumption: 200, isIngredient: true },
-    { id: 10, name: "Chá Preto", category: "Bebidas", price: 5, stock: 1200, unit: "g", avgConsumption: 150, isIngredient: true },
-    { id: 11, name: "Aloe", category: "Bebidas", price: 10, stock: 1200, unit: "ml", avgConsumption: 150 },
-    
-    // Adicionais
-    { id: 12, name: "Cookies", category: "Adicionais", price: 5, stock: 900, unit: "g", avgConsumption: 240 },
-  ],
-  
-  customers: [
-    { id: 1, name: "Maria Santos", phone: "(11) 98765-4321", email: "maria@email.com", status: "Ativo", lastVisit: "13/08/2026", totalVisits: 42 },
-    { id: 2, name: "João Pereira", phone: "(11) 91234-5678", email: "joao@email.com", status: "Ativo", lastVisit: "12/08/2026", totalVisits: 15 },
-    { id: 3, name: "Ana Clara", phone: "(11) 99999-8888", email: "ana@email.com", status: "Inativo", lastVisit: "01/07/2026", totalVisits: 5 },
-  ],
-  
-  checkout: (cartItems) => set((state) => {
-    let newRevenue = state.revenue;
-    let newShakes = state.shakesConsumed;
-    let newProducts = [...state.products];
-    let newVisitors = state.visitorsToday;
-    
-    cartItems.forEach(item => {
-      newRevenue += (item.product.price * item.quantity);
-      newVisitors += item.quantity;
+  products: [],
+  customers: [],
+
+  fetchInitialData: async () => {
+    try {
+      const [productsRes, customersRes] = await Promise.all([
+        fetch('/api/products'),
+        fetch('/api/customers')
+      ]);
+      const products = await productsRes.json();
+      const customers = await customersRes.json();
       
-      if (item.product.category === "Acesso") {
-        newShakes += item.quantity;
+      set({ 
+        products: [
+          // Keeping the Combo statically available as a pseudo-product if not in DB
+          { id: 100, name: "Acesso Completo (2 Chás + Shake)", category: "Acesso", price: 25, stock: 9999, unit: "un", avgConsumption: 0 },
+          ...products
+        ], 
+        customers,
+        isInitialized: true
+      });
+    } catch (e) {
+      console.error("Failed to fetch initial data", e);
+    }
+  },
+  
+  checkout: async (cartItems, customerId) => {
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cart: cartItems, customerId })
+      });
+      if (res.ok) {
+        await get().fetchInitialData(); // reload products to get correct stock
         
-        // Deduct customized ingredients from stock
-        const deduções = [
-          { prod: item.customization?.tea1, qty: 5 }, // 5g de chá
-          { prod: item.customization?.tea2, qty: 5 },
-          { prod: item.customization?.flavor1, qty: 13 }, // 13g por sabor (total 26 se 1 sabor)
-          { prod: item.customization?.flavor2, qty: 13 },
-          { prod: item.customization?.milkType, qty: item.customization?.milkType?.unit === "ml" ? 250 : 25 } // 250ml ou 25g de nutrev
-        ];
+        let newRevenue = get().revenue;
+        let newVisitors = get().visitorsToday;
+        let newShakes = get().shakesConsumed;
         
-        deduções.forEach(deducao => {
-          if (deducao.prod) {
-            const index = newProducts.findIndex(p => p.id === deducao.prod!.id);
-            if (index !== -1) {
-              newProducts[index].stock -= (deducao.qty * item.quantity);
-            }
+        cartItems.forEach(item => {
+          newRevenue += (item.product.price * item.quantity);
+          newVisitors += item.quantity;
+          if (item.product.category === "Acesso") {
+             newShakes += item.quantity;
           }
         });
-      } else {
-        // Direct product deduction
-        const index = newProducts.findIndex(p => p.id === item.product.id);
-        if (index !== -1 && !item.product.isIngredient) {
-          newProducts[index].stock -= (1 * item.quantity);
-        }
+        set({ revenue: newRevenue, visitorsToday: newVisitors, shakesConsumed: newShakes });
       }
-    });
-    
-    return {
-      revenue: newRevenue,
-      shakesConsumed: newShakes,
-      products: newProducts,
-      visitorsToday: newVisitors
-    };
-  }),
+    } catch (e) {
+      console.error("Checkout failed", e);
+    }
+  },
 
-  addProduct: (product) => set((state) => ({
-    products: [...state.products, { ...product, id: Date.now() }]
-  })),
+  addProduct: async (product) => {
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      });
+      if (res.ok) {
+        const newProduct = await res.json();
+        set((state) => ({ products: [...state.products, newProduct] }));
+      }
+    } catch (e) {
+      console.error("Add product failed", e);
+    }
+  },
 
-  updateStock: (id, delta) => set((state) => ({
-    products: state.products.map(p => p.id === id ? { ...p, stock: p.stock + delta } : p)
-  })),
+  updateStock: async (id, delta) => {
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateStock', amount: delta })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        set((state) => ({
+          products: state.products.map(p => p.id === id ? updated : p)
+        }));
+      }
+    } catch (e) {
+      console.error("Update stock failed", e);
+    }
+  },
 
-  addCustomer: (customer) => set((state) => ({
-    customers: [{ ...customer, id: Date.now() }, ...state.customers]
-  })),
+  addCustomer: async (customer) => {
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customer)
+      });
+      if (res.ok) {
+        const newCustomer = await res.json();
+        set((state) => ({ customers: [newCustomer, ...state.customers] }));
+        return newCustomer;
+      }
+    } catch (e) {
+      console.error("Add customer failed", e);
+      throw e;
+    }
+  },
 
-  updateCustomer: (id, customerData) => set((state) => ({
-    customers: state.customers.map(c => c.id === id ? { ...c, ...customerData } : c)
-  })),
+  updateCustomer: async (id, customerData) => {
+    try {
+      const res = await fetch(`/api/customers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customerData)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        set((state) => ({
+          customers: state.customers.map(c => c.id === id ? updated : c)
+        }));
+      }
+    } catch (e) {
+      console.error("Update customer failed", e);
+    }
+  },
 
-  deleteCustomer: (id) => set((state) => ({
-    customers: state.customers.filter(c => c.id !== id)
-  })),
+  deleteCustomer: async (id) => {
+    try {
+      const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        set((state) => ({
+          customers: state.customers.filter(c => c.id !== id)
+        }));
+      }
+    } catch (e) {
+      console.error("Delete customer failed", e);
+    }
+  },
   
   setActiveCustomerForSale: (customer) => set({ activeCustomerForSale: customer }),
 }))

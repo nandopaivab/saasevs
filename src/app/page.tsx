@@ -7,7 +7,6 @@ export default function Dashboard() {
   const revenue = useStore(state => state.revenue);
   const visitorsToday = useStore(state => state.visitorsToday);
   const shakesConsumed = useStore(state => state.shakesConsumed);
-  const recentVisitors = useStore(state => state.recentVisitors);
 
   return (
     <main className="flex min-h-screen flex-col bg-background p-8">
