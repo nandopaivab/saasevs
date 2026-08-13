@@ -1,24 +1,17 @@
 "use client";
 
 import { AlertTriangle, TrendingUp, TrendingDown, Info, Package, Calendar } from "lucide-react";
+import { useStore } from "@/store/useStore";
 
 export default function InventoryPage() {
-  const inventory = [
-    { id: 1, name: "Morango", stock: 3300, avgConsumption: 442, unit: "g", status: "orange", daysLeft: 7, date: "19/08" },
-    { id: 2, name: "Chocolate", stock: 8200, avgConsumption: 390, unit: "g", status: "green", daysLeft: 21, date: "02/09" },
-    { id: 3, name: "Baunilha", stock: 2100, avgConsumption: 350, unit: "g", status: "orange", daysLeft: 6, date: "18/08" },
-    { id: 4, name: "Cookies", stock: 900, avgConsumption: 240, unit: "g", status: "red", daysLeft: 3, date: "15/08" },
-    { id: 5, name: "Protein Powder", stock: 1200, avgConsumption: 150, unit: "g", status: "yellow", daysLeft: 8, date: "20/08" },
-  ];
+  const products = useStore((state) => state.products);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "green": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
-      case "yellow": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800";
-      case "orange": return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800";
-      case "red": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
-      default: return "bg-secondary text-foreground";
-    }
+  const getStatusColor = (stock: number, avg: number) => {
+    const daysLeft = stock / (avg || 1);
+    if (daysLeft < 4) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800";
+    if (daysLeft < 8) return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800";
+    if (daysLeft < 16) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800";
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
   };
 
   return (
@@ -112,20 +105,32 @@ export default function InventoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {inventory.map((item) => (
-              <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                <td className="p-4 font-medium">{item.name}</td>
-                <td className="p-4 font-mono">{item.stock.toLocaleString()} {item.unit}</td>
-                <td className="p-4 text-muted-foreground font-mono">{item.avgConsumption} {item.unit}</td>
-                <td className="p-4 font-bold">{item.daysLeft} dias</td>
-                <td className="p-4">{item.date}</td>
-                <td className="p-4 text-right">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(item.status)}`}>
-                    {item.status === 'red' ? 'Crítico' : item.status === 'orange' ? 'Atenção' : item.status === 'yellow' ? 'Normal' : 'Confortável'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {products.map((item) => {
+              const daysLeft = Math.floor(item.stock / (item.avgConsumption || 1));
+              
+              let statusText = "Confortável";
+              if (daysLeft < 4) statusText = "Crítico";
+              else if (daysLeft < 8) statusText = "Atenção";
+              else if (daysLeft < 16) statusText = "Normal";
+
+              const endDate = new Date();
+              endDate.setDate(endDate.getDate() + daysLeft);
+
+              return (
+                <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-4 font-medium">{item.name}</td>
+                  <td className="p-4 font-mono">{item.stock.toLocaleString()} {item.unit}</td>
+                  <td className="p-4 text-muted-foreground font-mono">{item.avgConsumption} {item.unit}</td>
+                  <td className="p-4 font-bold">{daysLeft} dias</td>
+                  <td className="p-4">{endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</td>
+                  <td className="p-4 text-right">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(item.stock, item.avgConsumption)}`}>
+                      {statusText}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

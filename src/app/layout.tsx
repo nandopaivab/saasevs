@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 };
 
 import { Sidebar } from "@/components/Sidebar";
+import { AuthProvider } from "@/components/AuthProvider";
+import { usePathname } from "next/navigation";
+import LayoutClient from "./LayoutClient";
 
 export default function RootLayout({
   children,
@@ -20,10 +23,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} bg-background text-foreground flex min-h-screen`}>
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-x-hidden">
-          {children}
-        </div>
+        <AuthProvider>
+          <LayoutClient>
+            {children}
+          </LayoutClient>
+        </AuthProvider>
       </body>
     </html>
   );
