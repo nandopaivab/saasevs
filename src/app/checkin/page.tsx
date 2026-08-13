@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Search, UserPlus, ArrowRight, UserCheck } from "lucide-react";
+import { Search, UserPlus, ArrowRight, UserCheck, X } from "lucide-react";
 import { useStore, Customer } from "@/store/useStore";
 
 export default function CheckinPage() {
   const customers = useStore(state => state.customers);
-  const [search, setSearch] = useState("");
+  const addCustomer = useStore(state => state.addCustomer);
   
-  // Create a mock local state for visitors since the original useStore visitor logic was removed
-  // We will track the checked in users here
+  const [search, setSearch] = useState("");
+  const [isAnonModalOpen, setIsAnonModalOpen] = useState(false);
+  const [anonData, setAnonData] = useState({ name: "", phone: "" });
+  
+  // Track checked in users locally
   const [visitors, setVisitors] = useState<{id: number, name: string, time: string, status: string}[]>([]);
 
-  const filteredCustomers = search.length > 1 
+  // If search is empty, show all active customers, otherwise filter by search
+  const displayCustomers = search.length > 0 
     ? customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search))
-    : [];
+    : customers.filter(c => c.status === "Ativo"); // Show active ones by default
 
   const handleCheckin = (customer: Customer) => {
     setVisitors(prev => [{
@@ -27,18 +31,35 @@ export default function CheckinPage() {
     alert(`${customer.name} fez check-in com sucesso!`);
   };
 
-  const handleAnonymousCheckin = () => {
+  const handleAnonymousCheckin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!anonData.name) return;
+
+    // Add them to the checked-in list
     setVisitors(prev => [{
       id: Date.now(),
-      name: "Visitante Avulso",
+      name: anonData.name,
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       status: "Novo"
     }, ...prev]);
-    alert(`Visitante Avulso fez check-in com sucesso!`);
+
+    // Save them to the CRM so they are not anonymous anymore
+    addCustomer({
+      name: anonData.name,
+      phone: anonData.phone,
+      email: "",
+      status: "Ativo",
+      lastVisit: new Date().toLocaleDateString('pt-BR'),
+      totalVisits: 1
+    });
+
+    alert(`${anonData.name} fez check-in e foi cadastrado com sucesso!`);
+    setIsAnonModalOpen(false);
+    setAnonData({ name: "", phone: "" });
   };
 
   return (
-    <main className="p-8 max-w-5xl mx-auto w-full">
+    <main className="p-8 max-w-5xl mx-auto w-full relative h-screen overflow-y-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Check-in Rápido</h1>
@@ -46,7 +67,7 @@ export default function CheckinPage() {
             Registre a entrada de clientes ou visitantes instantaneamente.
           </p>
         </div>
-        <button onClick={handleAnonymousCheckin} className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors">
+        <button onClick={() => setIsAnonModalOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors">
           <UserPlus className="w-5 h-5" />
           Visitante Não Cadastrado
         </button>
@@ -67,29 +88,27 @@ export default function CheckinPage() {
           </div>
         </div>
         
-        {search.length > 1 && (
-          <div className="mt-4 border border-border rounded-xl overflow-hidden divide-y divide-border bg-background">
-            {filteredCustomers.map(customer => (
-              <div key={customer.id} className="p-4 flex items-center justify-between hover:bg-muted/50">
-                <div>
-                  <p className="font-bold">{customer.name}</p>
-                  <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                </div>
-                <button 
-                  onClick={() => handleCheckin(customer)}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
-                >
-                  Fazer Check-in
-                </button>
+        <div className="mt-4 border border-border rounded-xl overflow-hidden divide-y divide-border bg-background max-h-64 overflow-y-auto">
+          {displayCustomers.map(customer => (
+            <div key={customer.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+              <div>
+                <p className="font-bold">{customer.name}</p>
+                <p className="text-sm text-muted-foreground">{customer.phone}</p>
               </div>
-            ))}
-            {filteredCustomers.length === 0 && (
-              <div className="p-4 text-center text-muted-foreground">
-                Nenhum cliente encontrado.
-              </div>
-            )}
-          </div>
-        )}
+              <button 
+                onClick={() => handleCheckin(customer)}
+                className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
+                Fazer Check-in
+              </button>
+            </div>
+          ))}
+          {displayCustomers.length === 0 && (
+            <div className="p-4 text-center text-muted-foreground">
+              Nenhum cliente encontrado.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -137,6 +156,53 @@ export default function CheckinPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal Visitante Não Cadastrado */}
+      {isAnonModalOpen && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md border border-border rounded-2xl shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-border flex justify-between items-center">
+              <h2 className="text-xl font-bold">Check-in de Novo Visitante</h2>
+              <button onClick={() => setIsAnonModalOpen(false)} className="p-2 hover:bg-secondary rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAnonymousCheckin} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Nome</label>
+                <input 
+                  type="text" 
+                  value={anonData.name}
+                  onChange={e => setAnonData({...anonData, name: e.target.value})}
+                  required
+                  placeholder="Nome do visitante"
+                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Telefone (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={anonData.phone}
+                  onChange={e => setAnonData({...anonData, phone: e.target.value})}
+                  placeholder="(11) 99999-9999"
+                  className="w-full bg-background border border-input rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none" 
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setIsAnonModalOpen(false)} className="flex-1 px-4 py-2 rounded-lg font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={!anonData.name} className="flex-1 px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg disabled:opacity-50 hover:bg-primary/90 transition-colors">
+                  Registrar Entrada
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
