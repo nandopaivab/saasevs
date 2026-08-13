@@ -45,6 +45,7 @@ interface AppState {
   
   products: Product[];
   customers: Customer[];
+  activeCustomerForSale: Customer | null;
   
   checkout: (cartItems: CartItem[]) => void;
   addProduct: (product: Omit<Product, "id">) => void;
@@ -52,6 +53,7 @@ interface AppState {
   addCustomer: (customer: Omit<Customer, "id">) => void;
   updateCustomer: (id: number, customer: Partial<Customer>) => void;
   deleteCustomer: (id: number) => void;
+  setActiveCustomerForSale: (customer: Customer | null) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -62,6 +64,8 @@ export const useStore = create<AppState>((set) => ({
   revenue: 1485,
   visitorsToday: 82,
   shakesConsumed: 74,
+  
+  activeCustomerForSale: null,
   
   products: [
     { id: 100, name: "Acesso Completo (2 Chás + Shake)", category: "Acesso", price: 25, stock: 9999, unit: "un", avgConsumption: 0 },
@@ -157,4 +161,6 @@ export const useStore = create<AppState>((set) => ({
   deleteCustomer: (id) => set((state) => ({
     customers: state.customers.filter(c => c.id !== id)
   })),
+  
+  setActiveCustomerForSale: (customer) => set({ activeCustomerForSale: customer }),
 }))

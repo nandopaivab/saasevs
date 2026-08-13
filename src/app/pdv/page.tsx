@@ -8,6 +8,8 @@ export default function PDVPage() {
   const products = useStore((state) => state.products);
   const checkout = useStore((state) => state.checkout);
   const customers = useStore((state) => state.customers);
+  const activeCustomerForSale = useStore((state) => state.activeCustomerForSale);
+  const setActiveCustomerForSale = useStore((state) => state.setActiveCustomerForSale);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -15,7 +17,16 @@ export default function PDVPage() {
   // Customer Selection State
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(activeCustomerForSale);
+
+  const handleCheckout = () => {
+    if (cart.length === 0) return;
+    checkout(cart);
+    alert("Venda finalizada com sucesso!");
+    setCart([]);
+    setSelectedCustomer(null);
+    setActiveCustomerForSale(null);
+  };
 
   // Customization Modal State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -78,13 +89,6 @@ export default function PDVPage() {
   };
 
   const total = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-
-  const handleCheckout = () => {
-    if (cart.length === 0) return;
-    checkout(cart);
-    alert("Venda finalizada com sucesso!");
-    setCart([]);
-  };
 
   return (
     <main className="flex h-screen overflow-hidden relative">
