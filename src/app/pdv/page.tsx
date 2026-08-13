@@ -7,10 +7,16 @@ import { useStore, Product, CartItem } from "@/store/useStore";
 export default function PDVPage() {
   const products = useStore((state) => state.products);
   const checkout = useStore((state) => state.checkout);
+  const customers = useStore((state) => state.customers);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   
+  // Customer Selection State
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+
   // Customization Modal State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [flavor1, setFlavor1] = useState<Product | null>(null);
@@ -128,10 +134,13 @@ export default function PDVPage() {
       {/* Carrinho / Resumo da Venda */}
       <div className="w-96 bg-card border-l border-border flex flex-col shadow-xl z-10">
         <div className="p-4 border-b border-border">
-          <div className="bg-secondary/50 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-secondary transition-colors">
+          <div 
+            onClick={() => setIsCustomerModalOpen(true)}
+            className="bg-secondary/50 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-secondary transition-colors"
+          >
             <div>
               <p className="text-xs text-muted-foreground font-medium uppercase">Cliente Selecionado</p>
-              <p className="font-bold">Cliente Avulso</p>
+              <p className="font-bold">{selectedCustomer ? selectedCustomer.name : 'Cliente Avulso'}</p>
             </div>
             <Search className="w-4 h-4 text-muted-foreground" />
           </div>
@@ -192,6 +201,54 @@ export default function PDVPage() {
           </button>
         </div>
       </div>
+
+      {/* Modal Selecionar Cliente */}
+      {isCustomerModalOpen && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md border border-border rounded-2xl shadow-2xl flex flex-col h-[60vh]">
+            <div className="p-6 border-b border-border flex justify-between items-center">
+              <h2 className="text-xl font-bold">Selecionar Cliente</h2>
+              <button onClick={() => setIsCustomerModalOpen(false)} className="p-2 hover:bg-secondary rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 border-b border-border bg-muted/20">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="w-full bg-background border border-input rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <button 
+                onClick={() => { setSelectedCustomer(null); setIsCustomerModalOpen(false); }}
+                className="w-full p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 text-left transition-colors flex justify-between items-center"
+              >
+                <span className="font-bold">Cliente Avulso</span>
+                {!selectedCustomer && <span className="text-primary text-sm font-bold">Selecionado</span>}
+              </button>
+              {customers.filter(c => c.name.toLowerCase().includes(customerSearchTerm.toLowerCase())).map(customer => (
+                <button 
+                  key={customer.id}
+                  onClick={() => { setSelectedCustomer(customer); setIsCustomerModalOpen(false); }}
+                  className="w-full p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 text-left transition-colors flex justify-between items-center"
+                >
+                  <div>
+                    <span className="font-bold block">{customer.name}</span>
+                    <span className="text-xs text-muted-foreground">{customer.phone}</span>
+                  </div>
+                  {selectedCustomer?.id === customer.id && <span className="text-primary text-sm font-bold">Selecionado</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Customização de Acesso */}
       {selectedProduct && (
